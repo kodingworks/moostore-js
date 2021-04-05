@@ -10,8 +10,6 @@ export default class Entity {
 
     Object.assign(this, data)
 
-    console.log(this)
-
     return this
   }
 }
