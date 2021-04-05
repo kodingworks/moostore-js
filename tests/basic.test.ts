@@ -1,3 +1,4 @@
+import Shop from '../lib/entities/shop'
 import Parameter from '../lib/parameter'
 import Configuration from './../configuration'
 import MoostoreJS from './../index'
@@ -38,5 +39,19 @@ describe('test init object', () => {
       username: 'user'
     }
     expect(parameter.get('credentials', credentials)).toBe(credentials)
+  })
+
+  it('check entity object', () => {
+    const shop = new Shop({
+      id: 1,
+      link: 'link',
+      name: 'random name',
+      description: 'corporis beatae qui',
+      address: '40006 Arianna Lake',
+      pictures: [],
+      rate: '5',
+    })
+
+    expect(shop.id === 1).toBeTruthy()
   })
 })
