@@ -1,14 +1,22 @@
 import * as puppeteer from 'puppeteer'
 import { Browser } from 'puppeteer'
 import Configuration from '../../configuration'
+import Cache from '../cache'
 
 export default class Request {
   url: string
   browser: Browser
   configuration: Configuration
+  cache: Cache
+
+  interceptRequests: Array<String> = ['font', 'stylesheet', 'media']
 
   constructor(configuration: Configuration) {
     this.configuration = configuration
+
+    if (configuration.useCache()) {
+      this.cache = new Cache(configuration)
+    }
   }
 
   /**
@@ -57,6 +65,14 @@ export default class Request {
     return {}
   }
 
+  async preRequestCallback(page: any): Promise<any> {
+    return {}
+  }
+
+  async postRequestCallback(page: any): Promise<any> {
+    return {}
+  }
+
   /**
    * Send request and return the requested page
    * @returns string
@@ -64,7 +80,18 @@ export default class Request {
   async getPage() {
     const url = this.getURL()
 
+    const cacheKey = this.getURL().replace('https://', '')
+
     try {
+      // check if cache is active, return cache data immediately
+      if (this.configuration.useCache()) {
+        let cacheData = await this.cache.get(cacheKey)
+        if (cacheData !== null && cacheData !== undefined && cacheData.toString().length > 0) {
+          return cacheData
+        }
+        console.log('Cache', cacheData)
+      }
+
       // open new page on current active browser
       const browser = await this.getBrowser()
       const page = await browser.newPage()
@@ -73,40 +100,56 @@ export default class Request {
       // it important for perfomance issue
       // abort every unused resource
       await page.setRequestInterception(true)
-      page.on('request', (intercepedRequest) => {
+
+      console.log('InterceptRequest', this.interceptRequests)
+
+      page.on('request', (interceptedRequest) => {
         let abort = false
-        if (intercepedRequest.resourceType() === 'image'
-          || intercepedRequest.resourceType() === 'font'
-          || intercepedRequest.resourceType() === 'stylesheet'
-          || intercepedRequest.resourceType() === 'media'
-        ) {
+        if (this.interceptRequests.indexOf(interceptedRequest.resourceType()) >= 0) {
           abort = true
         }
 
         if (abort) {
-          intercepedRequest.abort()
+          interceptedRequest.abort()
         } else {
-          intercepedRequest.continue()
+          interceptedRequest.continue()
         }
       })
 
       // set user agent,
       // we use mobile agent
       // to get most simple version of the site
-      page.setUserAgent(
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
-      )
+      const userAgent: string = this.configuration && this.configuration.getUserAgent()
+        ? this.configuration.getUserAgent()
+        : 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
+      page.setUserAgent(userAgent)
       page.setDefaultTimeout(0)
+
+      // enable browser page cache
+      if (this.configuration.useCache()) {
+        page.setCacheEnabled(true)
+      }
+
+      this.preRequestCallback(page)
+
+      // console.log('Request', page)
 
       // navigate to page
       await page.goto(url)
       // await page.waitForNavigation()
+
+      await this.postRequestCallback(page)
 
       // get page content
       const content = await page.content()
 
       // close current active browser
       this.closeBrowser()
+
+      // store cache
+      if (this.configuration.useCache()) {
+        this.cache.put(cacheKey, content)
+      }
 
       return content
     } catch (err) {

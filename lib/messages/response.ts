@@ -2,7 +2,7 @@ const cheerio = require('cheerio')
 
 export default class Response {
   data: any
-s
+
   setData(data: any) {
     this.data = data
   }
