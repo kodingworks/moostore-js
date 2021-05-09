@@ -69,9 +69,13 @@ export default class Cache {
 
     console.log('CACHE: writing cache to ', filePath)
 
-    await fs.writeFile(filePath, value, (err) => {
-      console.log('CACHE: writing file err ', err)
+    fs.writeFile(filePath, value, (err) => {
+      if (err !== undefined && err !== null) {
+        console.log('CACHE: writing file err ', err)
+      }
     })
+
+    return
   }
 
   async forget(key: string) {
