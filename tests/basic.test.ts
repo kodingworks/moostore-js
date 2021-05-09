@@ -2,6 +2,7 @@ import Shop from '../lib/entities/shop'
 import Parameter from '../lib/parameter'
 import Configuration from './../configuration'
 import MoostoreJS from './../index'
+import Cache from '../lib/cache'
 
 let configuration: Configuration
 let moostore: MoostoreJS
@@ -53,5 +54,35 @@ describe('test init object', () => {
     })
 
     expect(shop.id === 1).toBeTruthy()
+  })
+})
+
+describe('cache test', () => {
+  it('init success', (done) => {
+    const credentials = {
+      username: '',
+    }
+    const baseURL = 'https://base-url.com'
+    const cachePath = './cache'
+
+    configuration = new Configuration({
+      credentials,
+      baseURL,
+      cachePath,
+    })
+
+    const cache = new Cache(configuration)
+
+    cache.put('string', 'test').then(() => {
+      done()
+    }).catch(err => {
+      done(err)
+    })
+
+    cache.get('string').then(result => {
+      done(result)
+    }).catch(err => {
+      done(err)
+    })
   })
 })
